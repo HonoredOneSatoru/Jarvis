@@ -1,0 +1,35 @@
+name: Build Jarvis APK
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: unzip -q OfflineAssistant.zip
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Voice engine library
+        working-directory: OfflineAssistant
+        run: |
+          mkdir -p app/libs
+          curl -L --fail --retry 5 -o app/libs/sherpa-onnx.aar "https://huggingface.co/csukuangfj/sherpa-onnx-libs/resolve/main/android/aar/1.12.21/sherpa-onnx-static-link-onnxruntime-1.12.21.aar"
+      - name: Build
+        working-directory: OfflineAssistant
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - run: cp OfflineAssistant/app/build/outputs/apk/debug/app-debug.apk Jarvis.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Jarvis (latest build)
+          files: Jarvis.apk
+          make_latest: true
