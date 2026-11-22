@@ -10,7 +10,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: unzip -q OfflineAssistant.zip
+        with:
+          fetch-depth: 0
+      - name: Find the project
+        run: |
+          newest=""
+          newest_t=0
+          for z in *.zip; do
+            [ -e "$z" ] || continue
+            t=$(git log -1 --format=%ct -- "$z")
+            if [ "${t:-0}" -ge "$newest_t" ]; then newest="$z"; newest_t="${t:-0}"; fi
+          done
+          if [ -n "$newest" ]; then
+            echo "Using zip: $newest"
+            rm -rf OfflineAssistant
+            unzip -q "$newest"
+          fi
+          if [ -d OfflineAssistant/app ]; then
+            echo "PROJECT=OfflineAssistant" >> "$GITHUB_ENV"
+          elif [ -d app ]; then
+            echo "PROJECT=." >> "$GITHUB_ENV"
+          else
+            echo "ERROR: no project found. Files in the repository:"
+            ls -la
+            exit 1
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -19,14 +43,15 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Voice engine library
-        working-directory: OfflineAssistant
+        working-directory: ${{ env.PROJECT }}
         run: |
           mkdir -p app/libs
           curl -L --fail --retry 5 -o app/libs/sherpa-onnx.aar "https://huggingface.co/csukuangfj/sherpa-onnx-libs/resolve/main/android/aar/1.12.21/sherpa-onnx-static-link-onnxruntime-1.12.21.aar"
       - name: Build
-        working-directory: OfflineAssistant
+        working-directory: ${{ env.PROJECT }}
         run: gradle :app:assembleDebug --no-daemon --stacktrace
-      - run: cp OfflineAssistant/app/build/outputs/apk/debug/app-debug.apk Jarvis.apk
+      - name: Name the APK
+        run: cp "$PROJECT/app/build/outputs/apk/debug/app-debug.apk" Jarvis.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
