@@ -35,6 +35,11 @@ jobs:
             ls -la
             exit 1
           fi
+      - name: Add missing source file
+        run: |
+          d="$PROJECT/app/src/main/java/com/example/voiceassistant"
+          mkdir -p "$d"
+          cp JarvisNotificationListener.kt "$d/"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -49,12 +54,6 @@ jobs:
           curl -L --fail --retry 5 -o app/libs/sherpa-onnx.aar "https://huggingface.co/csukuangfj/sherpa-onnx-libs/resolve/main/android/aar/1.12.21/sherpa-onnx-static-link-onnxruntime-1.12.21.aar"
       - name: Build
         working-directory: ${{ env.PROJECT }}
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
-      - name: Name the APK
-        run: cp "$PROJECT/app/build/outputs/apk/debug/app-debug.apk" Jarvis.apk
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: Jarvis (latest build)
-          files: Jarvis.apk
-          make_latest: true
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --
