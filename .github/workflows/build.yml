@@ -49,7 +49,18 @@ jobs:
           curl -L --fail --retry 5 -o app/libs/sherpa-onnx.aar "https://huggingface.co/csukuangfj/sherpa-onnx-libs/resolve/main/android/aar/1.12.21/sherpa-onnx-static-link-onnxruntime-1.12.21.aar"
       - name: Build
         working-directory: ${{ env.PROJECT }}
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --no-daemon --console=plain 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+      - name: Show the error clearly
+        if: failure()
+        run: |
+          {
+            echo "## Build error summary"
+            echo '```'
+            (grep -n -B2 -A14 -E "What went wrong|^e: |FAILURE:" build.log | head -90) || tail -40 build.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Name the APK
         run: cp "$PROJECT/app/build/outputs/apk/debug/app-debug.apk" Jarvis.apk
       - uses: softprops/action-gh-release@v2
